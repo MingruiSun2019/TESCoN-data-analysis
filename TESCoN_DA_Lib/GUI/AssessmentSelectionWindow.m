@@ -1,0 +1,96 @@
+classdef AssessmentSelectionWindow < BaseWindow
+    properties (Access = private)
+        SubjectID string
+        TaskType string
+        TitleLabel matlab.ui.control.Label
+        BaselineButton matlab.ui.control.Button
+        PostInterventionButton matlab.ui.control.Button
+    end
+    
+    methods (Access = private)
+        function backButtonPushed(app)
+            app.clearWindow();
+            SubjectDataWindow(app.UIFigure, app.SubjectID);
+        end
+        
+        function baselineButtonPushed(app)
+            app.clearWindow();
+            if app.TaskType == "ISNCSCI"
+                ISNCSCIWindow(app.UIFigure, app.SubjectID, 'BSL', app.TaskType);
+            elseif app.TaskType == "Coordination"
+                CoordinationWindow(app.UIFigure, app.SubjectID, 'BSL', app.TaskType);
+            end
+        end
+        
+        function postInterventionButtonPushed(app)
+            app.clearWindow();
+            if app.TaskType == "ISNCSCI"
+                ISNCSCIWindow(app.UIFigure, app.SubjectID, 'PIV', app.TaskType);
+            elseif app.TaskType == "Coordination"
+                CoordinationWindow(app.UIFigure, app.SubjectID, 'PIV', app.TaskType);
+            end
+        end
+        
+        function createComponents(app)
+            initializeBaseWindow(app);
+            app.UIFigure.Name = ['Assessment Selection - ' char(app.TaskType)];
+            
+            % Show back button
+            showBackButton(app, @(~,~) backButtonPushed(app));
+            
+            % Create title label
+            app.TitleLabel = uilabel(app.UIFigure);
+            app.TitleLabel.FontSize = 16;
+            app.TitleLabel.FontWeight = 'bold';
+            app.TitleLabel.Position = [20 550 360 30];
+            app.TitleLabel.Text = ['Select Assessment Type - ' char(app.TaskType)];
+            
+            % Check data availability
+            dataPath = './Data_Source/';
+            taskPath = fullfile(dataPath, app.SubjectID, app.TaskType);
+            
+            % Check BSL data
+            bslPath = fullfile(taskPath, 'BSL');
+            bslFiles = dir(fullfile(bslPath, '*.*'));
+            bslFiles = bslFiles(~[bslFiles.isdir]); % Remove directories
+            hasBSL = exist(bslPath, 'dir') && length(bslFiles) == 1;
+            
+            % Check PIV data
+            pivPath = fullfile(taskPath, 'PIV');
+            pivFiles = dir(fullfile(pivPath, '*.*'));
+            pivFiles = pivFiles(~[pivFiles.isdir]); % Remove directories
+            hasPIV = exist(pivPath, 'dir') && length(pivFiles) == 1;
+            
+            % Create buttons
+            buttonWidth = 200;
+            buttonHeight = 40;
+            
+            % Baseline button
+            app.BaselineButton = uibutton(app.UIFigure, 'push');
+            app.BaselineButton.Position = [400 350 buttonWidth buttonHeight];
+            app.BaselineButton.Text = 'Baseline';
+            app.BaselineButton.FontSize = 14;
+            app.BaselineButton.Enable = hasBSL;
+            app.BaselineButton.ButtonPushedFcn = @(~,~) baselineButtonPushed(app);
+            
+            % Post Intervention button
+            app.PostInterventionButton = uibutton(app.UIFigure, 'push');
+            app.PostInterventionButton.Position = [400 280 buttonWidth buttonHeight];
+            app.PostInterventionButton.Text = 'Post Intervention';
+            app.PostInterventionButton.FontSize = 14;
+            app.PostInterventionButton.Enable = hasPIV;
+            app.PostInterventionButton.ButtonPushedFcn = @(~,~) postInterventionButtonPushed(app);
+        end
+    end
+    
+    methods (Access = public)
+        function app = AssessmentSelectionWindow(fig, subjectID, taskType)
+            app.SubjectID = subjectID;
+            app.TaskType = taskType;
+            if nargin > 0
+                app.UIFigure = fig;
+            end
+            createComponents(app);
+        end
+    end
+end 

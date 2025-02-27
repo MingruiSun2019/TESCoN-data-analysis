@@ -1,0 +1,3 @@
+function startGUI()
+    WelcomeWindow;
+end 
