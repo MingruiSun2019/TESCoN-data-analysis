@@ -6,6 +6,9 @@ classdef ISNCSCIWindow < BaseWindow
         Side string
         TitleLabel matlab.ui.control.Label
         ExtractButton matlab.ui.control.Button
+        ExtractLeftButton matlab.ui.control.Button
+        ExtractRightButton matlab.ui.control.Button
+        MergeLeftRightButton matlab.ui.control.Button
         VisualiseButton matlab.ui.control.Button
         MergeButton matlab.ui.control.Button
         SaveButton matlab.ui.control.Button
@@ -37,7 +40,7 @@ classdef ISNCSCIWindow < BaseWindow
         
         function saveButtonPushed(app)
             % Create directory path
-            basePath = './Data_Processed/';
+            basePath = './Data_Extracted/';
             subjectPath = fullfile(basePath, app.SubjectID);
             testPath = fullfile(subjectPath, 'ISNCSCI');
             savePath = fullfile(testPath, app.AssessType);
@@ -57,14 +60,18 @@ classdef ISNCSCIWindow < BaseWindow
             end
             
             % Create filename
-            filename = ['processed_' char(app.SubjectID) '_ISNCSCI_' char(app.AssessType) '_' char(app.Side) '.mat'];
+            if isempty(app.Side)
+                filename = [char(app.SubjectID) '_ISNCSCI_' char(app.AssessType) '_extracted.mat'];
+            else
+                filename = [char(app.SubjectID) '_ISNCSCI_' char(app.AssessType) '_' char(app.Side) '_extracted.mat'];
+            end
             fullPath = fullfile(savePath, filename);
             
             % Save only the chnlData.ISNCSCI struct
-            saveData = app.DataExtractor.chnlData.ISNCSCI;  % Get the specific struct to save
+            ISNCSCIData = app.DataExtractor.chnlData.ISNCSCI;  % Get the specific struct to save
             
             % Save the data
-            save(fullPath, 'saveData');
+            save(fullPath, 'ISNCSCIData');
             
             % Update status
             app.StatusLabel.Text = 'Data saved successfully!';
@@ -97,7 +104,7 @@ classdef ISNCSCIWindow < BaseWindow
                 for i = 1:numRecordings
                     recordingNames(i) = "Rec" + i;
                 end
-                app.DataExtractor = app.DataExtractor.extractChannelsMultiRecording(recordingNames);
+                app.DataExtractor = app.DataExtractor.extractChannelsMultiRecording();
                 app.MergeButton.Enable = true;
             end
             
@@ -117,6 +124,53 @@ classdef ISNCSCIWindow < BaseWindow
             % Enable Extract Triggered button after extraction
             app.ExtractTriggeredButton.Enable = true;
         end
+
+        function mergeLeftRightButtonPushed(app)
+            % Merage the left and right recordings in the processed data
+            basePath = './Data_Extracted/';
+            subjectPath = fullfile(basePath, app.SubjectID);
+            testPath = fullfile(subjectPath, 'ISNCSCI');
+            savePath = fullfile(testPath, app.AssessType);
+
+            filenameLeft = [char(app.SubjectID) '_ISNCSCI_' char(app.AssessType) '_Left_extracted.mat'];
+            filenameRight = [char(app.SubjectID) '_ISNCSCI_' char(app.AssessType) '_Right_extracted.mat'];
+            filenameMerged = [char(app.SubjectID) '_ISNCSCI_' char(app.AssessType) '_extracted.mat'];
+            fullPathLeft = fullfile(savePath, filenameLeft);
+            fullPathRight = fullfile(savePath, filenameRight);
+            fullPathMerged = fullfile(savePath, filenameMerged);
+
+            % Load the left and right data
+            dataLeft = load(fullPathLeft);
+            dataRight = load(fullPathRight);
+
+            % dataLeft and dataRight are structs with the same fields, each field is a muscle/trigger with 1xn double arrays
+            % We want to merge the dataLeft and dataRight structs into a single struct
+            % Get the field names from dataLeft
+            dataLeft = dataLeft.ISNCSCIData;
+            dataRight = dataRight.ISNCSCIData;
+            fieldNames = fieldnames(dataLeft);
+            
+            % Loop through each field in the dataLeft, and concatenate the dataRight field to the end of the dataLeft field
+            for i = 1:length(fieldNames)
+                % Get the current field name
+                fieldName = fieldNames{i};
+                dataLeft.(fieldName) = [dataLeft.(fieldName), dataRight.(fieldName)];
+            end
+            ISNCSCIData = dataLeft;
+
+            % Save the merged data to a new file
+            save(fullPathMerged, 'ISNCSCIData');
+
+            % Delete the filenameLeft and filenameRight files
+            delete(fullPathLeft);
+            delete(fullPathRight);
+
+            % Update status
+            app.StatusLabel.Text = 'Left and right recordings merged!';
+            app.StatusLabel.Visible = 'on';
+            
+        end
+        
         
         function visualiseButtonPushed(app)
             if ~isempty(app.DataExtractor)
@@ -129,7 +183,7 @@ classdef ISNCSCIWindow < BaseWindow
                     for i = 1:app.NumRecordings
                         recordingNames(i) = "Rec" + i;
                     end
-                    app.DataExtractor.graphAllChannelsMultiRecording(recordingNames);
+                    app.DataExtractor.graphAllChannelsMultiRecording();
                 end
             end
         end
@@ -150,7 +204,11 @@ classdef ISNCSCIWindow < BaseWindow
                 fullData = app.DataExtractor.chnlData.(testType).(channelName);
                 
                 % Apply trigger mask
-                app.DataExtractor.chnlData.(testType).(channelName) = fullData(triggerMask);
+                if isempty(fullData)
+                    app.DataExtractor.chnlData.(testType).(channelName) = [];
+                else
+                    app.DataExtractor.chnlData.(testType).(channelName) = fullData(triggerMask);
+                end
             end
             
             % Update status
@@ -192,6 +250,13 @@ classdef ISNCSCIWindow < BaseWindow
             app.ExtractRightButton.Text = 'Extract Right';
             app.ExtractRightButton.FontSize = 12;
             app.ExtractRightButton.ButtonPushedFcn = @(~,~) extractButtonPushed(app, 'Right');
+
+            % Merge left and right button
+            app.MergeLeftRightButton = uibutton(app.UIFigure, 'push');
+            app.MergeLeftRightButton.Position = [140 350 100 30];
+            app.MergeLeftRightButton.Text = 'Merge Left and Right';
+            app.MergeLeftRightButton.FontSize = 12;
+            app.MergeLeftRightButton.ButtonPushedFcn = @(~,~) mergeLeftRightButtonPushed(app);
             
             % Create Visualise button
             app.VisualiseButton = uibutton(app.UIFigure, 'push');

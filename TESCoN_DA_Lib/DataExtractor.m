@@ -13,6 +13,7 @@ classdef DataExtractor
         chnlData
         metaData
         dsFactor
+        graphDsFactor
         triggerThres
     end
 
@@ -22,7 +23,8 @@ classdef DataExtractor
             obj.sampleRate = sampleRate;  % Hz
             obj.metaData.assessType = assessType; % BSL or PIV
             obj.metaData.taskType = testType; % Rest, ISNCSCI, Coordination (Coord)
-            obj.dsFactor = 100;
+            obj.dsFactor = 1;
+            obj.graphDsFactor = 100;
             obj.triggerThres = 5;
             
             % Add y-axis limits parameters
@@ -45,9 +47,9 @@ classdef DataExtractor
             else
                 % Side parameter provided, do something else
                 % You can implement your logic here based on the side parameter
-                filename = sprintf("./Data_Source/%s/%s/%s/%s_EMG_%s_%s_%s.mat", obj.subID, obj.metaData.taskType, obj.metaData.assessType, obj.subID, obj.metaData.assessType, fileTaskType, side);
+                filename = sprintf("./Data_Source/%s/%s/%s/%s_EMG_%s_%s_%s.mat", obj.subID, obj.metaData.taskType, obj.metaData.assessType, obj.subID, obj.metaData.assessType, fileTaskType, upper(side));
                 obj = obj.loadTest(filename);
-                obj = obj.extractChannelNames(side);
+                obj = obj.extractChannelNames();
             end
         end
 
@@ -85,13 +87,15 @@ classdef DataExtractor
                 endIdx = obj.rawData.(obj.metaData.taskType).dataend(channelIdx);
         
                 % Extract original high-frequency data
-                fullResData = obj.rawData.(obj.metaData.taskType).data(startIdx:endIdx);
-        
-                % Downsample: Keep every dsFactor-th sample
-                obj.chnlData.(obj.metaData.taskType).(channelName) = fullResData(1:obj.dsFactor:end);
+                if startIdx > 0 && endIdx > 0
+                    fullResData = obj.rawData.(obj.metaData.taskType).data(startIdx:endIdx);
+                    % Downsample: Keep every dsFactor-th sample
+                    obj.chnlData.(obj.metaData.taskType).(channelName) = fullResData(1:obj.dsFactor:end);
+                else
+                    obj.chnlData.(obj.metaData.taskType).(channelName) = [];
+                end
             end
         end
-
 
 
         function obj = extractChannelsMultiRecording(obj)
@@ -122,8 +126,11 @@ classdef DataExtractor
                     endIdx = obj.rawData.(obj.metaData.taskType).dataend(channelIdx, recordIdx);
         
                     % Extract full-resolution data
-                    channelDataIdx = startIdx:endIdx;
-                    chData = obj.rawData.(obj.metaData.taskType).data(channelDataIdx);
+                    if startIdx > 0 && endIdx > 0
+                        chData = obj.rawData.(obj.metaData.taskType).data(startIdx:endIdx);
+                    else
+                        chData = [];
+                    end
         
                     % Downsample before storing
                     chDataDS = chData(1:obj.dsFactor:end);
@@ -153,7 +160,8 @@ classdef DataExtractor
         
                 % Get channel data and time
                 chData = obj.chnlData.(obj.metaData.taskType).(channelName);
-                t = (1:length(chData)) / (obj.sampleRate / obj.dsFactor);
+                chData = chData(1:obj.graphDsFactor:end);
+                t = (1:length(chData)) / (obj.sampleRate / obj.graphDsFactor);
         
                 % Plot downsampled data
                 cla(gca, 'reset');  % Clears current axes and resets properties
@@ -167,9 +175,9 @@ classdef DataExtractor
                 obj.plotTriggerBands(intervals);
         
                 % Overlay comment lines and text
-                obj.plotCommentLines(commentTimestamps);
+                obj.plotCommentLines(commentTimestamps.Recording1);
                 if channelIdx == numChannels
-                    obj.plotCommentText(obj.metaData.taskType, commentTimestamps);
+                    obj.plotCommentText(obj.metaData.taskType, commentTimestamps.Recording1);
                 end
         
                 % For the very last subplot, add an x-label
@@ -198,8 +206,9 @@ classdef DataExtractor
                 % Get length of first channel as reference
                 channelName = obj.metaData.(obj.metaData.taskType).channelNames(1);
                 recordData = obj.chnlData.(obj.metaData.taskType).(channelName).(recordingNames(recordIdx));
+                recordData = recordData(1:obj.graphDsFactor:end);
                 timeOffsets(recordIdx) = totalLength;
-                totalLength = totalLength + length(recordData) / (obj.sampleRate / obj.dsFactor);
+                totalLength = totalLength + length(recordData) / (obj.sampleRate / obj.graphDsFactor);
             end
 
             for channelIdx = 1:numChannels
@@ -210,7 +219,8 @@ classdef DataExtractor
                 for recordIdx = 1:length(recordingNames)
                     % Get channel data and time for this recording
                     chData = obj.chnlData.(obj.metaData.taskType).(channelName).(recordingNames(recordIdx));
-                    tLocal = (1:length(chData)) / (obj.sampleRate / obj.dsFactor);
+                    chData = chData(1:obj.graphDsFactor:end);
+                    tLocal = (1:length(chData)) / (obj.sampleRate / obj.graphDsFactor);
                     t = tLocal + timeOffsets(recordIdx);
 
                     % Plot data
@@ -424,20 +434,18 @@ classdef DataExtractor
             % Handle single recording case
             if nargin < 4
                 % Get comments for this recording
-                if isfield(timestamps, 'Recording1')
-                    recordingComments = timestamps.Recording1;
-                    % Ensure we only use as many comments as we have timestamps
-                    numComments = min(length(recordingComments), size(commentTexts, 1));
+                recordingComments = timestamps;
+                % Ensure we only use as many comments as we have timestamps
+                numComments = min(length(recordingComments), size(commentTexts, 1));
+                
+                for i = 1:numComments
                     
-                    for i = 1:numComments
-                        
-                        text(recordingComments(i), 0.9 * yTop, strtrim(commentTexts(i, :)), ...
-                            'Rotation', 90, ...
-                            'VerticalAlignment', 'top', ...
-                            'HorizontalAlignment', 'left', ...
-                            'FontSize', 8, ...
-                            'Interpreter', 'none');
-                    end
+                    text(recordingComments(i), 0.9 * yTop, strtrim(commentTexts(i, :)), ...
+                        'Rotation', 90, ...
+                        'VerticalAlignment', 'top', ...
+                        'HorizontalAlignment', 'left', ...
+                        'FontSize', 8, ...
+                        'Interpreter', 'none');
                 end
             else
                 % Multiple recordings case

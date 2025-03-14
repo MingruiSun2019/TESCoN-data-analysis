@@ -5,6 +5,8 @@ classdef AssessmentSelectionWindow < BaseWindow
         TitleLabel matlab.ui.control.Label
         BaselineButton matlab.ui.control.Button
         PostInterventionButton matlab.ui.control.Button
+        BaselineNote matlab.ui.control.Label
+        PostInterventionNote matlab.ui.control.Label
     end
     
     methods (Access = private)
@@ -53,13 +55,25 @@ classdef AssessmentSelectionWindow < BaseWindow
             bslPath = fullfile(taskPath, 'BSL');
             bslFiles = dir(fullfile(bslPath, '*.*'));
             bslFiles = bslFiles(~[bslFiles.isdir]); % Remove directories
-            hasBSL = exist(bslPath, 'dir') && length(bslFiles) == 1;
+            lengthBSL = length(bslFiles);
+            hasBSL = exist(bslPath, 'dir') && lengthBSL >= 1;
+            if lengthBSL >  1
+                noteTextBSL = sprintf("Found %d BSL files", lengthBSL);
+            else
+                noteTextBSL = "";
+            end
             
             % Check PIV data
             pivPath = fullfile(taskPath, 'PIV');
             pivFiles = dir(fullfile(pivPath, '*.*'));
             pivFiles = pivFiles(~[pivFiles.isdir]); % Remove directories
-            hasPIV = exist(pivPath, 'dir') && length(pivFiles) == 1;
+            lengthPIV = length(pivFiles);
+            hasPIV = exist(pivPath, 'dir') && lengthPIV >= 1;
+            if lengthPIV >  1
+                noteTextPIV = sprintf("Found %d PIV files", lengthPIV);
+            else
+                noteTextPIV = "";
+            end
             
             % Create buttons
             buttonWidth = 200;
@@ -72,6 +86,12 @@ classdef AssessmentSelectionWindow < BaseWindow
             app.BaselineButton.FontSize = 14;
             app.BaselineButton.Enable = hasBSL;
             app.BaselineButton.ButtonPushedFcn = @(~,~) baselineButtonPushed(app);
+
+            % Baseline note
+            app.BaselineNote = uilabel(app.UIFigure);
+            app.BaselineNote.Position = [400 320 200 30];
+            app.BaselineNote.Text = noteTextBSL;
+            app.BaselineNote.FontSize = 12;
             
             % Post Intervention button
             app.PostInterventionButton = uibutton(app.UIFigure, 'push');
@@ -80,6 +100,12 @@ classdef AssessmentSelectionWindow < BaseWindow
             app.PostInterventionButton.FontSize = 14;
             app.PostInterventionButton.Enable = hasPIV;
             app.PostInterventionButton.ButtonPushedFcn = @(~,~) postInterventionButtonPushed(app);
+
+            % Post Intervention note
+            app.PostInterventionNote = uilabel(app.UIFigure);
+            app.PostInterventionNote.Position = [400 250 200 30];
+            app.PostInterventionNote.Text = noteTextPIV;
+            app.PostInterventionNote.FontSize = 12;
         end
     end
     

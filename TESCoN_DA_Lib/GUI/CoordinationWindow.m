@@ -16,6 +16,8 @@ classdef CoordinationWindow < BaseWindow
         RecordingNames string
         LeftDominantButton matlab.ui.control.Button
         RightDominantButton matlab.ui.control.Button
+        ManualInputs cell
+        ManualExtractButton matlab.ui.control.Button
     end
     
     methods (Access = private)
@@ -55,7 +57,7 @@ classdef CoordinationWindow < BaseWindow
         
         function saveButtonPushed(app)
             % Create directory path
-            basePath = './Data_Processed/';
+            basePath = './Data_Extracted/';
             subjectPath = fullfile(basePath, app.SubjectID);
             testPath = fullfile(subjectPath, 'Coordination');
             savePath = fullfile(testPath, app.AssessType);
@@ -75,16 +77,14 @@ classdef CoordinationWindow < BaseWindow
             end
             
             % Create filename
-            filename = ['processed_' char(app.SubjectID) '_Coordination_' char(app.AssessType) '.mat'];
+            filename = [char(app.SubjectID) '_Coordination_' char(app.AssessType) '_extracted.mat'];
             fullPath = fullfile(savePath, filename);
             
-            % Create a copy of DataExtractor
-            saveData = app.DataExtractor;
-            saveData.rawData = [];
-            saveData.dsFactor = [];
+            % Save only the chnlData.Coordination struct
+            CoordinationData = app.DataExtractor.chnlData.Coordination;  % Get the specific struct to save
             
             % Save the data
-            save(fullPath, 'saveData');
+            save(fullPath, 'CoordinationData');
             
             % Update status
             app.StatusLabel.Text = 'Data saved successfully!';
@@ -128,21 +128,102 @@ classdef CoordinationWindow < BaseWindow
             
             % Store the processed names
             app.RecordingNames = recordNames;
-            
+            renameChannelRecordingNames(app);
+
             % Update status
             app.StatusLabel.Text = 'Recording names confirmed!';
             app.StatusLabel.Visible = 'on';
         end
+
+        function renameChannelRecordingNames(app)
+            channelNames =  app.DataExtractor.metaData.Coordination.channelNames;
+            for i = 1:length(channelNames)
+                numRecording = length(app.RecordingNames);
+                oldRecordingNames = "Recording" + string(1:numRecording);
+                newRecordingNames = app.RecordingNames;
+                
+                % Get current channel name
+                currentChannel = channelNames{i};
+                
+                % Update field names in the channel data
+                for j = 1:numRecording
+                    oldFieldName = oldRecordingNames(j);
+                    newFieldName = newRecordingNames(j);
+                    disp(oldFieldName);
+                    disp(newFieldName);
+                    
+                    % Check if the old field exists before renaming
+                    if isfield(app.DataExtractor.chnlData.Coordination.(currentChannel), oldFieldName)
+                        % Store the data temporarily
+                        tempData = app.DataExtractor.chnlData.Coordination.(currentChannel).(oldFieldName);
+                        % Remove old field
+                        app.DataExtractor.chnlData.Coordination.(currentChannel) = rmfield(app.DataExtractor.chnlData.Coordination.(currentChannel), oldFieldName);
+                        % Add new field with the same data
+                        app.DataExtractor.chnlData.Coordination.(currentChannel).(newFieldName) = tempData;
+                    end
+                end
+            end
+        end
         
         function leftDominantButtonPushed(app)
-            app.RecordingNamesField.Value = 'Left_SS, Left_Fast, Right_SS, Right_Fast, Left_SS2, Left_Fast2';
+            app.RecordingNamesField.Value = 'Left_SS, Left_Fast, Right_SS, Right_Fast';
             app.StatusLabel.Text = 'Left dominant pattern selected';
             app.StatusLabel.Visible = 'on';
         end
         
         function rightDominantButtonPushed(app)
-            app.RecordingNamesField.Value = 'Right_SS, Right_Fast, Left_SS, Left_Fast, Right_SS2, Right_Fast2';
+            app.RecordingNamesField.Value = 'Right_SS, Right_Fast, Left_SS, Left_Fast';
             app.StatusLabel.Text = 'Right dominant pattern selected';
+            app.StatusLabel.Visible = 'on';
+        end
+        
+        function manualExtractButtonPushed(app)
+            testType = "Coordination";
+            sampleRate = 2000; % Assuming 2000Hz sample rate
+            extractedData = struct();
+            
+            % Process each row of manual inputs
+            for row = 1:6
+                % Get values from the current row
+                startTime = app.ManualInputs{row, 1}.Value;
+                endTime = app.ManualInputs{row, 2}.Value;
+                recordingLabel = app.ManualInputs{row, 3}.Value;
+                
+                % Only process if all fields in the row are filled
+                if ~isempty(startTime) && ~isempty(endTime) && ~isempty(recordingLabel)
+                    % Convert time to frame indices
+                    goFrameIdx = round(str2double(startTime) * sampleRate);
+                    endFrameIdx = round(str2double(endTime) * sampleRate);
+                    
+                    if ~isnan(goFrameIdx) && ~isnan(endFrameIdx) && goFrameIdx < endFrameIdx
+                        % Extract data between start and end for each channel
+                        channelNames = app.DataExtractor.metaData.(testType).channelNames;
+                        for i = 1:length(channelNames)
+                            channelName = channelNames{i};
+
+                            % Combine all recordings into one
+                            combinedData = [];
+                            % find all field names in app.DataExtractor.chnlData.(testType).(channelName)
+                            recordingNames = fieldnames(app.DataExtractor.chnlData.(testType).(channelName));
+                            for j = 1:length(recordingNames)
+                                combinedData = [combinedData, app.DataExtractor.chnlData.(testType).(channelName).(cell2mat(recordingNames(j)))];
+                            end
+
+                            % Ensure indices are within bounds
+                            goFrameIdx = max(1, goFrameIdx);
+                            endFrameIdx = min(length(combinedData), endFrameIdx);
+
+                            extractedData.(channelName).(recordingLabel) = combinedData(goFrameIdx:endFrameIdx);
+                        end
+                    else
+                        warning('Invalid time values in row %d: Start=%s, End=%s', row, startTime, endTime);
+                    end
+                end
+            end
+            app.DataExtractor.chnlData.(testType) = extractedData;
+            
+            % Update status
+            app.StatusLabel.Text = 'Manual GO-END extraction complete!';
             app.StatusLabel.Visible = 'on';
         end
         
@@ -206,7 +287,45 @@ classdef CoordinationWindow < BaseWindow
             app.RecordingNamesField = uieditfield(app.UIFigure, 'text');
             app.RecordingNamesField.Position = [20 450 500 30];
             app.RecordingNamesField.FontSize = 12;
-            app.RecordingNamesField.Value = 'Right_SS, Right_Fast, Left_SS, Left_Fast, Right_SS2, Right_Fast2';
+            app.RecordingNamesField.Value = 'Right_SS, Right_Fast, Left_SS, Left_Fast';
+            
+            % Create column labels
+            startLabel = uilabel(app.UIFigure);
+            startLabel.Position = [20 420 60 20];
+            startLabel.Text = 'Start time';
+            
+            endLabel = uilabel(app.UIFigure);
+            endLabel.Position = [90 420 60 20];
+            endLabel.Text = 'End time';
+            
+            labelText = uilabel(app.UIFigure);
+            labelText.Position = [160 420 60 20];
+            labelText.Text = 'Label';
+            
+            % Create 6x3 grid of text input boxes
+            inputWidth = 60;
+            inputHeight = 25;
+            startX = 20;
+            startY = 390;
+            spacing = 70;
+            
+            % Initialize cell arrays to store the input fields
+            app.ManualInputs = cell(6, 3);
+            
+            for row = 1:6
+                for col = 1:3
+                    app.ManualInputs{row, col} = uieditfield(app.UIFigure, 'text');
+                    app.ManualInputs{row, col}.Position = [startX + (col-1)*spacing, ...
+                        startY - (row-1)*30, inputWidth, inputHeight];
+                end
+            end
+            
+            % Create Manual Extract GO-END button
+            app.ManualExtractButton = uibutton(app.UIFigure, 'push');
+            app.ManualExtractButton.Position = [240 390 140 30];
+            app.ManualExtractButton.Text = 'Manual Extract GO-END';
+            app.ManualExtractButton.FontSize = 12;
+            app.ManualExtractButton.ButtonPushedFcn = @(~,~) manualExtractButtonPushed(app);
             
             % Create Confirm Record Label button
             app.ConfirmRecordButton = uibutton(app.UIFigure, 'push');
@@ -228,6 +347,21 @@ classdef CoordinationWindow < BaseWindow
             app.RightDominantButton.Text = 'Right dominant';
             app.RightDominantButton.FontSize = 12;
             app.RightDominantButton.ButtonPushedFcn = @(~,~) rightDominantButtonPushed(app);
+            
+            % Create instruction text box
+            instructionBox = uitextarea(app.UIFigure);
+            instructionBox.Value = {'Instructions:', ...
+                '', ...
+                'Normally, each recording (separated by green line)', ...
+                'contains one movement, use:', ...
+                'Extract -> Extract GO-END -> Save', ...
+                '', ...
+                'For not well-structured recording, do it manually:', ...
+                'enter the times and labels -> Manual Extract GO-END -> Save'};
+            instructionBox.Position = [400 250 300 150];
+            instructionBox.FontSize = 11;
+            instructionBox.BackgroundColor = [0.95 0.95 0.95];
+            %instructionBox.Enable = 'off';  % Make it read-only
         end
     end
     
