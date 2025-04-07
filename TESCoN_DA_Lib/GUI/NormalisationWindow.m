@@ -139,20 +139,26 @@ classdef NormalisationWindow < BaseWindow
             assessType = tagParts{2};
         
             % 1. Load the data files
+            % Load Rest data
+            restPath = fullfile('./Data_Extracted', subjectID, 'Rest', assessType);
+            restFile = dir(fullfile(restPath, ['*_Rest_' assessType '_extracted.mat']));
+            restData = load(fullfile(restPath, restFile.name));
+            Rest_data = restData.data;
+
             % Load ISNCSCI data
             isncsciPath = fullfile('./Data_Extracted', subjectID, 'ISNCSCI', assessType);
             isncsciFile = dir(fullfile(isncsciPath, ['*_ISNCSCI_' assessType '_extracted.mat']));
             isncsciData = load(fullfile(isncsciPath, isncsciFile.name));
-            ISNCSCI_data = isncsciData.ISNCSCIData;
+            ISNCSCI_data = isncsciData.data;
 
             % Load Coordination data
             coordPath = fullfile('./Data_Extracted', subjectID, 'Coordination', assessType);
             coordFile = dir(fullfile(coordPath, ['*_Coordination_' assessType '_extracted.mat']));
             coordData = load(fullfile(coordPath, coordFile.name));
-            Coord_data = coordData.CoordinationData;
+            Coord_data = coordData.data;
 
             % Initialize DataProcessor
-            processor = DataProcessor(subjectID, ISNCSCI_data, Coord_data);
+            processor = DataProcessor(subjectID, Rest_data, ISNCSCI_data, Coord_data);
 
             % 2. Process the data
             processor = processor.baselineCorrection();

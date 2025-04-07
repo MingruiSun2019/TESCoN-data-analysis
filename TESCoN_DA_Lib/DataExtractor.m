@@ -28,7 +28,7 @@ classdef DataExtractor
             obj.triggerThres = 5;
             
             % Add y-axis limits parameters
-            obj.params.ylim.emg = [-1, 1];
+            obj.params.ylim.emg = [-5, 5];
             obj.params.ylim.trigger = [-1, 12];
         end
 
@@ -97,7 +97,6 @@ classdef DataExtractor
             end
         end
 
-
         function obj = extractChannelsMultiRecording(obj)
             % Get number of recordings
             numRecording = size(obj.rawData.(obj.metaData.taskType).datastart, 2);
@@ -141,6 +140,28 @@ classdef DataExtractor
             end
         end
 
+        function obj = extractCommentAndTimestamps(obj)
+            % Get comments from raw data
+            if isfield(obj.rawData.(obj.metaData.taskType), 'comtext') && ...
+               isfield(obj.rawData.(obj.metaData.taskType), 'com')
+                
+                % Get all comments
+                comments = string(obj.rawData.(obj.metaData.taskType).comtext);
+                % Trim whitespace from comments
+                comments = strtrim(comments);
+                
+                % Calculate timestamps for each recording
+                timestamps = obj.calculateCommentTimestamps(obj.metaData.taskType);
+                
+                % Store in metadata
+                obj.metaData.(obj.metaData.taskType).comments = comments;
+                obj.metaData.(obj.metaData.taskType).commentTimestamps = timestamps;
+            else
+                % Initialize empty if no comments exist
+                obj.metaData.(obj.metaData.taskType).comments = string.empty;
+                obj.metaData.(obj.metaData.taskType).commentTimestamps = struct();
+            end
+        end
 
         function graphAllChannelsSingleRecording(obj)
             % Create figure
@@ -174,10 +195,16 @@ classdef DataExtractor
                 % Plot trigger-based color bands
                 obj.plotTriggerBands(intervals);
         
+                % Add channel name to top left
+                displayChannelName = channelName.replace("_", " ");
+                text(0.02, 0.9, displayChannelName, 'Units', 'normalized', 'FontWeight', 'bold', 'FontSize', 8);
+
                 % Overlay comment lines and text
-                obj.plotCommentLines(commentTimestamps.Recording1);
-                if channelIdx == numChannels
-                    obj.plotCommentText(obj.metaData.taskType, commentTimestamps.Recording1);
+                if isfield(commentTimestamps, 'Recording1')
+                    obj.plotCommentLines(commentTimestamps.Recording1, channelName);
+                    if channelIdx == numChannels
+                        obj.plotCommentText(obj.metaData.taskType, commentTimestamps.Recording1);
+                    end
                 end
         
                 % For the very last subplot, add an x-label
@@ -192,6 +219,7 @@ classdef DataExtractor
         function graphAllChannelsMultiRecording(obj)
             % Create figure
             figure("Position", [200, 200, 1400, 800])
+            fprintf("graphAllChannelsMultiRecording\n");
 
             % Number of channels for this testType
             numChannels = obj.params.(obj.metaData.taskType).numChannel;
@@ -236,19 +264,19 @@ classdef DataExtractor
                         xline(timeOffsets(recordIdx + 1), 'g-', 'LineWidth', 1.5);
                     end
 
-                    obj.plotGoEndBands(t, obj.metaData.taskType, recordIdx)
+                    % obj.plotGoEndBands(t, obj.metaData.taskType, recordIdx)
+                    % Add channel name to top left
+                    displayChannelName = channelName.replace("_", " ");
+                    text(0.02, 0.9, displayChannelName, 'Units', 'normalized', 'FontWeight', 'bold', 'FontSize', 8);
                     
                     % Plot comments for this recording
                     if isfield(commentTimestamps, sprintf('Recording%d', recordIdx))
                         recordingComments = commentTimestamps.(sprintf('Recording%d', recordIdx));
                         commentTimestampsThisRecording = recordingComments + timeOffsets(recordIdx);
-                        obj.plotCommentLines(commentTimestampsThisRecording);
-                        disp(sprintf('Recording %d', recordIdx));
-
+                        obj.plotCommentLines(commentTimestampsThisRecording, channelName);
                         
                         if channelIdx == numChannels
                             obj.plotCommentText(obj.metaData.taskType, commentTimestampsThisRecording, recordIdx);
-                            disp(sprintf('Recording in the last channel %d', recordIdx));
                         end
                     end
                 end
@@ -310,16 +338,28 @@ classdef DataExtractor
             comTextIndices = obj.rawData.(testType).com(recIndices, 5);
             commentTexts = obj.rawData.(testType).comtext(comTextIndices, :);
             
-            % Find "GO" and "END" indices
-            goIdx = find(contains(string(commentTexts), 'GO'), 1);
-            endIdx = find(contains(string(commentTexts), 'END'), 1);
+            % Find "SELF GO" or "FAST GO" indices (case-insensitive)
+            goIdx = find(contains(string(commentTexts), {'SELF GO', 'FAST GO', 'SELF START', 'FAST START'}, 'IgnoreCase', true));
+            endIdx = find(contains(string(commentTexts), {'SELF END', 'FAST END', 'SELF STOP', 'FAST STOP'}, 'IgnoreCase', true));
 
-            frameIndices = obj.rawData.(testType).com(recIndices, 3);
-            goFrameIdx = frameIndices(goIdx);
-            endFrameIdx = frameIndices(endIdx);
+            numGo = length(goIdx);
+            numEnd = length(endIdx);
+            disp("numGo: " + numGo + " numEnd: " + numEnd);
+            assert(numGo == numEnd, "Number of GO and END comments do not match for recording %d", recordIdx);
             
-            goFrameIdx = round(goFrameIdx / obj.dsFactor);
-            endFrameIdx = round(endFrameIdx / obj.dsFactor);
+
+            goFrameIdx = cell(1, numGo);
+            endFrameIdx = cell(1, numEnd);
+
+            for i = 1:numGo
+                frameIndices = obj.rawData.(testType).com(recIndices, 3);
+                goFrameIdx{i} = frameIndices(goIdx(i));
+                endFrameIdx{i} = frameIndices(endIdx(i));
+                
+                goFrameIdx{i} = round(goFrameIdx{i} / obj.dsFactor);
+                endFrameIdx{i} = round(endFrameIdx{i} / obj.dsFactor);
+            end
+        
         end
     end
 
@@ -367,8 +407,6 @@ classdef DataExtractor
             hold off;
         end
 
-
-
         function timestamps = calculateCommentTimestamps(obj, testType)
             % Check if 'com' and 'comtext' exist and are non-empty
             if ~isfield(obj.rawData.(testType), 'com') || isempty(obj.rawData.(testType).com)
@@ -402,21 +440,21 @@ classdef DataExtractor
             end
         end
 
-        function plotCommentLines(obj, timestamps)
+        function plotCommentLines(obj, timestamps, channelName)
             % Ensure timestamps exist
             if isempty(timestamps)
                 return;
             end
         
             % Draw vertical red dashed lines
+            setChannelYLim(obj, channelName)
             yLimits = ylim();
             for i = 1:length(timestamps)
                 hold on
-                plot([timestamps, timestamps], [yLimits(1), yLimits(2)], '-r', 'LineWidth', 1.0);
+                % disp("timestamps: " + timestamps(i));
+                plot([timestamps(i), timestamps(i)], [yLimits(1), yLimits(2)], '-r', 'LineWidth', 1.0);
             end
         end
-
-        
 
         function plotCommentText(obj, testType, timestamps, recordIdx)
             % Check if 'comtext' field exists and is non-empty
@@ -487,9 +525,6 @@ classdef DataExtractor
                 hold off;
             end
         end
-
-        
-
     end
 
 end

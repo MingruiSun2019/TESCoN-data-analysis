@@ -25,7 +25,7 @@ classdef SubjectDataWindow < BaseWindow
             app.TitleLabel = uilabel(app.UIFigure);
             app.TitleLabel.FontSize = 16;
             app.TitleLabel.FontWeight = 'bold';
-            app.TitleLabel.Position = [20 550 360 30];
+            app.TitleLabel.Position = [20 750 360 30];
             app.TitleLabel.Text = ['Data Extraction - Subject: ' char(app.SubjectID)];
 
             % Check which data types exist
@@ -44,12 +44,12 @@ classdef SubjectDataWindow < BaseWindow
                 % Create buttons for existing data types
                 buttonWidth = 200;
                 buttonHeight = 40;
-                baseY = 180;
+                baseY = 450;
                 spacing = 50;
 
                 if hasRest
                     app.RestButton = uibutton(app.UIFigure, 'push');
-                    app.RestButton.Position = [100 baseY buttonWidth buttonHeight];
+                    app.RestButton.Position = [400 baseY+60 buttonWidth buttonHeight];
                     app.RestButton.Text = 'Rest';
                     app.RestButton.FontSize = 14;
                     app.RestButton.ButtonPushedFcn = @(btn,event) restButtonPushed(app);
@@ -58,7 +58,7 @@ classdef SubjectDataWindow < BaseWindow
 
                 if hasISNCSCI
                     app.ISNCSCIButton = uibutton(app.UIFigure, 'push');
-                    app.ISNCSCIButton.Position = [100 baseY buttonWidth buttonHeight];
+                    app.ISNCSCIButton.Position = [400 baseY+30 buttonWidth buttonHeight];
                     app.ISNCSCIButton.Text = 'ISNCSCI';
                     app.ISNCSCIButton.FontSize = 14;
                     app.ISNCSCIButton.ButtonPushedFcn = @(btn,event) isncsciButtonPushed(app);
@@ -67,7 +67,7 @@ classdef SubjectDataWindow < BaseWindow
 
                 if hasCoord
                     app.CoordButton = uibutton(app.UIFigure, 'push');
-                    app.CoordButton.Position = [100 baseY buttonWidth buttonHeight];
+                    app.CoordButton.Position = [400 baseY buttonWidth buttonHeight];
                     app.CoordButton.Text = 'Coordination';
                     app.CoordButton.FontSize = 14;
                     app.CoordButton.ButtonPushedFcn = @(btn,event) coordButtonPushed(app);

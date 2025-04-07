@@ -1,4 +1,4 @@
-function result = processChannelName(inputString)
+function validFieldName = processChannelName(inputString)
     % Remove all spaces at the rear of the string
     trimmedString = regexprep(inputString, '\s+$', '');
     
@@ -8,4 +8,11 @@ function result = processChannelName(inputString)
     % Remove "(" and ")"
     inputStr = strrep(inputStr, '(', '');
     result = strrep(inputStr, ')', '');
+
+    idx = regexp(result, '[a-zA-Z]'); % Find the index of the first English character
+    if isempty(idx)
+        validFieldName = ''; % Return empty if no English character is found
+    else
+        validFieldName = extractAfter(result, idx(1) - 1); % Extract from the first English character
+    end
 end

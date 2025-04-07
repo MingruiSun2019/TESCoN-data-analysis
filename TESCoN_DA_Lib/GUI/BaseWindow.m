@@ -10,7 +10,7 @@ classdef BaseWindow < matlab.apps.AppBase
             if isempty(app.UIFigure)
                 app.UIFigure = uifigure('Visible', 'off');
             end
-            app.UIFigure.Position = [100 100 1000 600];
+            app.UIFigure.Position = [100 100 1000 800];
             app.UIFigure.Color = [1 1 1];
             
             % Create back button (hidden by default)

@@ -26,7 +26,7 @@ classdef DataExtractionWindow < BaseWindow
             app.DataLabel = uilabel(app.UIFigure);
             app.DataLabel.FontSize = 20;
             app.DataLabel.FontWeight = 'bold';
-            app.DataLabel.Position = [20 550 200 30];
+            app.DataLabel.Position = [20 750 200 30];
             app.DataLabel.Text = 'Select Subject:';
 
             % Get subject folders and create buttons

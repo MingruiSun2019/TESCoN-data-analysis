@@ -58,12 +58,14 @@ classdef DataProcessor
     end
 
     methods
-        function obj = DataProcessor(subID, ISNCSCI_data, Coord_data)
+        function obj = DataProcessor(subID, Rest_data, ISNCSCI_data, Coord_data)
             obj.subID = subID;
             obj.sampleRate = 2000;  % Hz
             obj.clean.rmsWindowLen = 0.1; %ms
+            obj.chnl.Rest = Rest_data;
             obj.chnl.ISNCSCI = ISNCSCI_data;
             obj.chnl.Coord = Coord_data;
+            obj = obj.getAvailableChannelNames(Rest_data, "Rest");
             obj = obj.getAvailableChannelNames(ISNCSCI_data, "ISNCSCI");
             obj = obj.getAvailableChannelNames(Coord_data, "Coord");
         end
@@ -110,10 +112,18 @@ classdef DataProcessor
         end
 
         function obj = getLinearEnvelope(obj)
+            % Rest
+            for channelIdx = 1:obj.params.numChannel.Rest
+                channelName = obj.metaData.Rest.channelNames(channelIdx);
+                restSignal = obj.chnl.Rest.(channelName);
+                restRectified = rectification(restSignal);
+                restRmsSmoothed = rmsSmoothing(restRectified, obj.clean.rmsWindowLen, obj.sampleRate);
+                obj.chnl.Rest.(channelName) = restRmsSmoothed;
+            end
+
             % ISNCSCI
             for channelIdx = 1:obj.params.numChannel.ISNCSCI
                 channelName = obj.metaData.ISNCSCI.channelNames(channelIdx);
-                
                 ISNCSCISignal = obj.chnl.ISNCSCI.(channelName); % cut the initialisation segment
                 ISNCSCIRectified = rectification(ISNCSCISignal);
                 ISNCSCIRmsSmoothed = rmsSmoothing(ISNCSCIRectified, obj.clean.rmsWindowLen, obj.sampleRate);
@@ -167,6 +177,12 @@ classdef DataProcessor
             else
                 isncsciSignal = [];
             end
+
+            if isfield(obj.chnl.Rest, channelName)
+                restSignal = obj.chnl.Rest.(channelName);
+            else
+                restSignal = [];
+            end
             scaleFactors = struct();
 
             if ~isempty(coordSignal) 
@@ -185,7 +201,9 @@ classdef DataProcessor
                 end
                 
                 % Rest
-                % Todo
+                if ~isempty(restSignal)
+                    scaleFactors.Rest = mean(restSignal);
+                end
 
                 % Cycle mean
                 scaleFactors.CycleMean = mean(coordSignal);
