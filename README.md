@@ -26,22 +26,24 @@ Layer 3: Calculate various metrics (e.g., CCI)
 
 #### 2. Set up file structure
 ##### Data_Source
-|- TAxxxxx/
-    |- Rest/
-        |- BSL/
-            |- TAxxxxx_EMG_BSL_Rest.mat/
-        |- PIV/
-            |- TAxxxxx_EMG_PIV_Rest.mat/
-    |- ISNCSCI
-        |- BSL
-            |- TAxxxxx_EMG_BSL_ISNCSCI.mat
-        |- PIV
-            |- TAxxxxx_EMG_PIV_ISNCSCI.mat
-    |- Coordination
-        |- BSL
-            |- TAxxxxx_EMG_BSL_Coord.mat
-        |- PIV
-            |- TAxxxxx_EMG_PIV_Coord.mat
+Data_Source/
+└── TAxxxxx/
+    ├── Rest/
+    │   ├── BSL/
+    │   │   └── TAxxxxx_EMG_BSL_Rest.mat
+    │   └── PIV/
+    │       └── TAxxxxx_EMG_PIV_Rest.mat
+    ├── ISNCSCI/
+    │   ├── BSL/
+    │   │   └── TAxxxxx_EMG_BSL_ISNCSCI.mat
+    │   └── PIV/
+    │       └── TAxxxxx_EMG_PIV_ISNCSCI.mat
+    └── Coordination/
+        ├── BSL/
+        │   └── TAxxxxx_EMG_BSL_Coord.mat
+        └── PIV/
+            └── TAxxxxx_EMG_PIV_Coord.mat
+
 
 ##### Data_Extracted
 |- TAxxxxx
@@ -61,6 +63,11 @@ Layer 3: Calculate various metrics (e.g., CCI)
         |- PIV
             |- TAxxxxx_TAxxxxx_Coordination_PIV_extracted.mat
 ##### Data_Processed
+|- TAxxxxx
+    |- BSL
+        |- TAxxxxx_Coordination_BSL_processed.mat
+    |- PIV
+        |- TAxxxxx_Coordination_PIV_processed.mat
 
 #### 3. Data Extraction
 - Run Data_Analysis.m
