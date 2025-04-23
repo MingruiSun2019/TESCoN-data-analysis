@@ -26,6 +26,7 @@ Layer 3: Calculate various metrics (e.g., CCI)
 
 #### 2. Set up file structure
 ##### Data_Source
+```text
 Data_Source/
 └── TAxxxxx/
     ├── Rest/
@@ -43,7 +44,7 @@ Data_Source/
         │   └── TAxxxxx_EMG_BSL_Coord.mat
         └── PIV/
             └── TAxxxxx_EMG_PIV_Coord.mat
-
+```
 
 ##### Data_Extracted
 |- TAxxxxx
