@@ -47,28 +47,34 @@ Data_Source/
 ```
 
 ##### Data_Extracted
-|- TAxxxxx
-    |- Rest
-        |- BSL
-            |- TAxxxxx_TAxxxxx_Rest_BSL_extracted.mat
-        |- PIV
-            |- TAxxxxx_TAxxxxx_Rest_PIV_extracted.mat
-    |- ISNCSCI
-        |- BSL
-            |- TAxxxxx_TAxxxxx_ISNCSCI_BSL_extracted.mat
-        |- PIV
-            |- TAxxxxx_TAxxxxx_ISNCSCI_PIV_extracted.mat
-    |- Coordination
-        |- BSL
-            |- TAxxxxx_TAxxxxx_Coordination_BSL_extracted.mat
-        |- PIV
-            |- TAxxxxx_TAxxxxx_Coordination_PIV_extracted.mat
+```text
+Data_Extracted/
+└── TAxxxxx/
+    ├── Rest/
+    │   ├── BSL/
+    │   │   └── TAxxxxx_TAxxxxx_Rest_BSL_extracted.mat
+    │   └── PIV/
+    │       └── TAxxxxx_TAxxxxx_Rest_PIV_extracted.mat
+    ├── ISNCSCI/
+    │   ├── BSL/
+    │   │   └── TAxxxxx_TAxxxxx_ISNCSCI_BSL_extracted.mat
+    │   └── PIV/
+    │       └── TAxxxxx_TAxxxxx_ISNCSCI_PIV_extracted.mat
+    └── Coordination/
+        ├── BSL/
+        │   └── TAxxxxx_TAxxxxx_Coordination_BSL_extracted.mat
+        └── PIV/
+            └── TAxxxxx_TAxxxxx_Coordination_PIV_extracted.mat
+```
 ##### Data_Processed
-|- TAxxxxx
-    |- BSL
-        |- TAxxxxx_Coordination_BSL_processed.mat
-    |- PIV
-        |- TAxxxxx_Coordination_PIV_processed.mat
+```text
+Data_Processed/
+└── TAxxxxx/
+    ├── BSL/
+    │   └── TAxxxxx_Coordination_BSL_processed.mat
+    └── PIV/
+        └── TAxxxxx_Coordination_PIV_processed.mat
+```
 
 #### 3. Data Extraction
 - Run Data_Analysis.m
@@ -116,35 +122,47 @@ Future development can consider remove this feature from the GUI.
 
 ### Processed data structure
 After step 4 (data normalisation), the data is cleaned, ready to use, and is stored in the following structure.
-Data_processed
-|- TAxxxxx
-    |- BSL
-        |- TAxxxxx_Coordination_BSL_processed.mat
-    |- PIV
-        |- TAxxxxx_Coordination_PIV_processed.mat
+```text
+Data_Processed/
+└── TAxxxxx/
+    ├── BSL/
+    │   └── TAxxxxx_Coordination_BSL_processed.mat
+    └── PIV/
+        └── TAxxxxx_Coordination_PIV_processed.mat
+```
 
 In each .mat file, the data is organised as:
+```text
 CoordProcessed
-|- chnl
-    |- Coord
-        |- Muscle1
-            |- Right_SS: 1 x n array, unnormalised EMG signal, at 2000Hz.
-            |- Right_fast: 1 x n array, unnormalised EMG signal, at 2000Hz.
-            |- Left_SS: 1 x n array, unnormalised EMG signal, at 2000Hz.
-            |- Left_Fast: 1 x n array, unnormalised EMG signal, at 2000Hz.
-        |- Muscle2
-        ...
-        |- Musclex
-|- ampScaleFactors
-    |- Muscle1
-        |- Right_SS
-            |- MVC: scale factor calculated from MVC. Use it as: normalised = unnormalisedEmg / scaleFactor
-            |- Rest: scale factor calculated from Rest 
-            |- CycleMean: scale factor calculated from the mean of emg of this trial
-            |- CycleMax: scale factor calculated from the max of emg of this trial
-        |- Right_fast: 1 x n array, unnormalised EMG signal, at 2000Hz.
-        |- Left_SS: 1 x n array, unnormalised EMG signal, at 2000Hz.
-        |- Left_Fast: 1 x n array, unnormalised EMG signal, at 2000Hz.
-    |- Muscle2
-    ...
-    |- Musclex
+├─ chnl
+│  └─ Coord
+│     ├─ Muscle1
+│     │  ├─ Right_SS    % 1 × N double, raw EMG @ 2000 Hz
+│     │  ├─ Right_Fast  % 1 × N double, raw EMG @ 2000 Hz
+│     │  ├─ Left_SS     % 1 × N double, raw EMG @ 2000 Hz
+│     │  └─ Left_Fast   % 1 × N double, raw EMG @ 2000 Hz
+│     ├─ Muscle2
+│     │  └─ …           % same four channels
+│     └─ MuscleX
+│        └─ …           % same four channels
+└─ ampScaleFactors
+   ├─ Muscle1
+   │  ├─ Right_SS
+   │  │   ├─ MVC        % scale factor from MVC trial
+   │  │   ├─ Rest       % scale factor from resting EMG
+   │  │   ├─ CycleMean  % scale factor = mean EMG of this trial
+   │  │   └─ CycleMax   % scale factor = max EMG of this trial
+   │  ├─ Right_Fast   % ≥ same four scalars
+   │  ├─ Left_SS
+   │  └─ Left_Fast
+   ├─ Muscle2
+   │  └─ …
+   └─ MuscleX
+```
+
+To normalise a raw signal:
+```matlab
+normSig = CoordProcessed.chnl.Coord.Muscle1.Right_SS ./ ...
+          CoordProcessed.ampScaleFactors.Muscle1.Right_SS.MVC;
+```
+(Swap `MVC` for `Rest`, `CycleMean`, or `CycleMax` as required.)
