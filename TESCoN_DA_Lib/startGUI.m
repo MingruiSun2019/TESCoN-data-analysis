@@ -1,3 +1,0 @@
-function startGUI()
-    WelcomeWindow;
-end 
