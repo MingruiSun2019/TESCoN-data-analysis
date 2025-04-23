@@ -189,14 +189,16 @@ classdef DataProcessor
                 % MVC
                 % |-- use a gliding window of 500ms to calculate the mean of the signal
                 if ~isempty(isncsciSignal)
-                    windowLen = 500; % ms
-                    stepSize = 100; % ms
-                    numWindows = floor((length(isncsciSignal) - windowLen) / stepSize) + 1;
-                    filteredSignal = zeros(1, length(numWindows));
-                    for i = 1:numWindows
-                        window = isncsciSignal(i:i+windowLen-1);
-                        filteredSignal(i) = mean(window);
-                    end
+                    % windowLen = 500; % 250 ms
+                    % stepSize = 100; % 50 ms
+                    % numWindows = floor((length(isncsciSignal) - windowLen) / stepSize) + 1;
+                    % filteredSignal = zeros(1, length(numWindows));
+                    % for i = 1:numWindows
+                    %     window = isncsciSignal(i:i+windowLen-1);
+                    %     filteredSignal(i) = mean(window);
+                    % end
+                    % scaleFactors.MVC = max(filteredSignal);
+                    filteredSignal = rmsSmoothing(isncsciSignal, obj.clean.rmsWindowLen, obj.sampleRate);
                     scaleFactors.MVC = max(filteredSignal);
                 end
                 

@@ -17,14 +17,25 @@ classdef CoContractionIndexCalculator
         antagonistEmg
         agonistScaleFactorsSet
         antagonistScaleFactorsSet
+        agonistMuscleName
+        antagonistMuscleName
+        sampleRate
     end
 
     methods
-        function obj = CoContractionIndexCalculator(processedData, agonistMuscle, antagonistMuscle, taskType)
+        function obj = CoContractionIndexCalculator(processedData, agonistMuscle, antagonistMuscle, taskType, sampleRate)
             obj.agonistEmg = processedData.chnl.Coord.(agonistMuscle).(taskType);
             obj.antagonistEmg = processedData.chnl.Coord.(antagonistMuscle).(taskType);
             obj.agonistScaleFactorsSet = processedData.ampScaleFactors.(agonistMuscle).(taskType);
             obj.antagonistScaleFactorsSet = processedData.ampScaleFactors.(antagonistMuscle).(taskType);
+            obj.agonistMuscleName = agonistMuscle;
+            obj.antagonistMuscleName = antagonistMuscle;
+            obj.sampleRate = sampleRate;
+        end
+
+        function obj = cut15seconds(obj)
+            obj.agonistEmg = obj.agonistEmg(1, 1:15*obj.sampleRate);
+            obj.antagonistEmg = obj.antagonistEmg(1, 1:15*obj.sampleRate);
         end
 
         function obj = scaleEmg(obj, preferredScaleFactorName, defaultScaleFactorName)
@@ -52,11 +63,45 @@ classdef CoContractionIndexCalculator
             coContractionIndex = overlapArea / (agonistArea + antagonistArea);
         end
 
+        function [mvcAgonist, mvcAntagonist] = exportMVC(obj)
+            if isfield(obj.agonistScaleFactorsSet, 'MVC')
+                mvcAgonist = obj.agonistScaleFactorsSet.MVC;
+            else
+                mvcAgonist = nan;
+            end
+            if isfield(obj.antagonistScaleFactorsSet, 'MVC')
+                mvcAntagonist = obj.antagonistScaleFactorsSet.MVC;
+            else
+                mvcAntagonist = nan;
+            end
+        end
+
         function visualiseAgonistAndAntagonistEmg(obj)
-            plot(obj.agonistEmg, 'r', 'DisplayName', 'Agonist EMG');
+            time = (0:length(obj.agonistEmg)-1) / obj.sampleRate;
+            plot(time, obj.agonistEmg, 'r', 'DisplayName', 'Agonist EMG');
             hold on;
-            plot(obj.antagonistEmg, 'b', 'DisplayName', 'Antagonist EMG');
-            legend;
+            plot(time, obj.antagonistEmg, 'b', 'DisplayName', 'Antagonist EMG');
+            grid on;
+        end
+
+        function obj = removeSpikes(obj)
+            % Remove spikes from agonist EMG
+            % agonistStd = std(obj.agonistEmg);
+            % agonistMean = mean(obj.agonistEmg);
+            % spikeIndices = abs(obj.agonistEmg - agonistMean) > 10 * agonistStd;
+            
+            % Fill spikes with nearest neighbor interpolation
+            % obj.agonistEmg = filloutliers(obj.agonistEmg,"previous","movmean",500);
+            obj.agonistEmg = filloutliers(obj.agonistEmg,"previous","percentiles",[0, 98]);
+            
+            % % Remove spikes from antagonist EMG
+            % antagonistStd = std(obj.antagonistEmg);
+            % antagonistMean = mean(obj.antagonistEmg);
+            % spikeIndices = abs(obj.antagonistEmg - antagonistMean) > 10 * antagonistStd;
+            
+            % Fill spikes with nearest neighbor interpolation
+            % obj.antagonistEmg = filloutliers(obj.antagonistEmg,"previous","movmean",500);
+            obj.antagonistEmg = filloutliers(obj.antagonistEmg,"previous","percentiles",[0, 98]);
         end
     end
 end
